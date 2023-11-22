@@ -1,6 +1,15 @@
 const stripe = require("stripe")(process.env.STRIPE_PRIVATE_KEY)
 
 
+
+// This servs as a temp database (Need to upgrade this to Mongodb atlas)
+const storeItems = new Map([
+  [1, { priceInCents: 10000, name: "Air Jordan 5", sku:"123456" }],
+  [2, { priceInCents: 20000, name: "Kobe 11", sku:"123457" }],
+])
+
+
+
 async function stripeCheckout(){
     
     return {url:"https://github.com/kevin46dsa/CS554-TeamMavericks-project/blob/master/server/data/imagemagic.js"}
