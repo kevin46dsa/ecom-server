@@ -1,8 +1,9 @@
 const configRoutes = require("./routes")
 
+
 // Require Dot Env for env variables
 require("dotenv").config()
-let port = 8000;
+let port = 8008;
 
 // Initializing Express server
 
@@ -17,10 +18,7 @@ app.use(
     })
   )
 
-  app.use(express.json())
-
-
-
+app.use(express.json())
 
 configRoutes(app);
 app.listen(process.env.PORT, () => {

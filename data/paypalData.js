@@ -1,22 +1,13 @@
-import express from "express";
-import fetch from "node-fetch";
-import "dotenv/config";
-import path from "path";
+
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+require("dotenv").config()
+
   
-const { PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PORT = 8888 } = process.env;
-const base = "https://api-m.sandbox.paypal.com";
-const app = express();
+const { PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET,BASE } = process.env;
+
+
   
-// host static files
-app.use(express.static("client"));
-  
-// parse post params sent in body in json format
-app.use(express.json());
-  
-/**
-* Generate an OAuth 2.0 access token for authenticating with PayPal REST APIs.
-* @see https://developer.paypal.com/api/rest/authentication/
-*/
+//function to generate accesstoken
 const generateAccessToken = async () => {
   try {
     if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
@@ -25,7 +16,7 @@ const generateAccessToken = async () => {
     const auth = Buffer.from(
       PAYPAL_CLIENT_ID + ":" + PAYPAL_CLIENT_SECRET,
     ).toString("base64");
-    const response = await fetch(`${base}/v1/oauth2/token`, {
+    const response = await fetch(`${BASE}/v1/oauth2/token`, {
       method: "POST",
       body: "grant_type=client_credentials",
       headers: {
@@ -40,29 +31,95 @@ const generateAccessToken = async () => {
   }
 };
   
-/**
-* Create an order to start the transaction.
-* @see https://developer.paypal.com/docs/api/orders/v2/#orders_create
-*/
+
+
+
+
+
+
+
 const createOrder = async (cart) => {
   // use the cart information passed from the front-end to calculate the purchase unit details
   console.log(
     "shopping cart information passed from the frontend createOrder() callback:",
     cart,
   );
+ //let orderDetails = processCart(cart);
   
   const accessToken = await generateAccessToken();
-  const url = `${base}/v2/checkout/orders`;
+  const url = `${BASE}/v2/checkout/orders`;
   const payload = {
     intent: "CAPTURE",
+    payer: {
+      name: {
+         given_name: "Kevin",
+         surname: "Dsa"
+      },
+      address: {
+         "address_line_1": "123 Main St.",
+         "admin_area_2": "Anytown",
+         "admin_area_1": "CA",
+         "postal_code": "12345",
+         "country_code": "US"
+      }
+    },
     purchase_units: [
-      {
+      { 
+        reference_id: "RF123456",
+        description: "Description of PU",
+        invoice_id: "INV_202302011234",
         amount: {
           currency_code: "USD",
-          value: "100.00",
-        },
+          value: "100.30",
+          breakdown: {
+             item_total: {
+                currency_code: "USD",
+                value: "90.20"
+             },
+             tax_total: {
+                currency_code: "USD",
+                value: "10.10"
+             },
+             shipping: {
+                currency_code: "USD",
+                value: "10.00"
+             },
+             discount: {
+                currency_code: "USD",
+                value: "10.00"
+             }
+          }
+       },
+       items: [
+        {
+           name: "Item1",
+           description: "Description of Item1",
+           sku: "SKU - 0",
+           url: "http: //example.com",
+           unit_amount: {
+              "currency_code": "USD",
+              "value": "45.10"
+           },
+           tax: {
+              currency_code: "USD",
+              value: "5.05"
+           },
+           quantity: "2",
+           category: "PHYSICAL_GOODS"
+        }
+        ],
+        shipping: {
+        address: {
+           address_line_1: "123 Main St.",
+           admin_area_2: "Anytown",
+           admin_area_1: "CA",
+           postal_code: "12345",
+           country_code: "US"
+        }
+     }
       },
     ],
+
   };
   
   const response = await fetch(url, {
@@ -81,14 +138,14 @@ const createOrder = async (cart) => {
   
   return handleResponse(response);
 };
-  
-/**
-* Capture payment for the created order to complete the transaction.
-* @see https://developer.paypal.com/docs/api/orders/v2/#orders_capture
-*/
+
+
+
+
+
 const captureOrder = async (orderID) => {
   const accessToken = await generateAccessToken();
-  const url = `${base}/v2/checkout/orders/${orderID}/capture`;
+  const url = `${BASE}/v2/checkout/orders/${orderID}/capture`;
   
   const response = await fetch(url, {
     method: "POST",
@@ -106,6 +163,10 @@ const captureOrder = async (orderID) => {
   return handleResponse(response);
 };
   
+
+
+
+//Helper function
 async function handleResponse(response) {
   try {
     const jsonResponse = await response.json();
@@ -119,34 +180,12 @@ async function handleResponse(response) {
   }
 }
   
-app.post("/api/orders", async (req, res) => {
-  try {
-    // use the cart information passed from the front-end to calculate the order amount detals
-    const { cart } = req.body;
-    const { jsonResponse, httpStatusCode } = await createOrder(cart);
-    res.status(httpStatusCode).json(jsonResponse);
-  } catch (error) {
-    console.error("Failed to create order:", error);
-    res.status(500).json({ error: "Failed to create order." });
-  }
-});
+
+
+module.exports = {
+  captureOrder,
+  createOrder,
+ 
+}
+
   
-app.post("/api/orders/:orderID/capture", async (req, res) => {
-  try {
-    const { orderID } = req.params;
-    const { jsonResponse, httpStatusCode } = await captureOrder(orderID);
-    res.status(httpStatusCode).json(jsonResponse);
-  } catch (error) {
-    console.error("Failed to create order:", error);
-    res.status(500).json({ error: "Failed to capture order." });
-  }
-});
-  
-// serve index.html
-app.get("/", (req, res) => {
-  res.sendFile(path.resolve("./client/checkout.html"));
-});
-  
-app.listen(PORT, () => {
-  console.log(`Node server listening at http://localhost:${PORT}/`);
-});
